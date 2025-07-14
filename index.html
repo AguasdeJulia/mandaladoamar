@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mandala do Amar</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- html2canvas CDN - ESSENCIAL para a funcionalidade de exportação de imagem -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* Estilos personalizados para o input range */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #EC4899; /* Cor do polegar (pink-500) */
+            cursor: pointer;
+            box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.4); /* Sombra para destaque */
+            transition: background .15s ease-in-out;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #EC4899; /* Cor do polegar (pink-500) */
+            cursor: pointer;
+            box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.4);
+            transition: background .15s ease-in-out;
+        }
+
+        input[type="range"]:hover::-webkit-slider-thumb {
+            background: #DB2777; /* Cor ao passar o mouse (pink-600) */
+        }
+
+        input[type="range"]:hover::-moz-range-thumb {
+            background: #DB2777; /* Cor ao passar o mouse (pink-600) */
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-pink-100 text-gray-900 font-inter flex flex-col items-center py-8 px-4 sm:px-6 lg:px-8">
+    <h1 class="text-5xl font-bold text-pink-700 mb-6 text-center">Mandala do Amar</h1>
+    <p class="text-xl font-bold text-gray-700 mb-8 text-center max-w-2xl">
+        Avalie seu nível de relacionamento consigo mesmo(a) e com o outro, atribuindo uma nota de 0 a 10 para cada afirmação.
+    </p>
+
+    <div class="w-full max-w-6xl flex flex-col md:flex-row gap-8 mb-8">
+        <div id="questions-container" class="w-full md:w-1/2 bg-pink-200 p-6 rounded-lg shadow-xl overflow-y-auto max-h-[600px]">
+            <h2 class="text-3xl font-bold text-pink-600 mb-6">Suas Respostas</h2>
+            <!-- Perguntas serão renderizadas aqui pelo JavaScript -->
+        </div>
+
+        <div id="chart-and-summary-export-container" class="w-full md:w-1/2 flex flex-col gap-8">
+            <div class="bg-pink-200 p-6 rounded-lg shadow-xl flex justify-center items-center" style="height: 700px;">
+                <canvas id="radarChart"></canvas>
+            </div>
+
+            <div id="summary-section" class="bg-pink-200 p-6 rounded-lg shadow-xl">
+                <h2 class="text-2xl font-bold text-pink-600 mb-4">Quadro Resumo das Respostas</h2>
+                <!-- Resumo será renderizado aqui pelo JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <div class="flex flex-col sm:flex-row gap-4 mb-8">
+        <button
+            id="export-button"
+            class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-opacity-75"
+        >
+            Exportar Gráfico e Resumo como Imagem
+        </button>
+    </div>
+
+    <footer class="mt-12 text-base font-bold text-gray-600 text-sm text-center">
+        <p>&copy; 2024 Mandala do Amar. Todos os direitos reservados.</p>
+    </footer>
+
+    <script>
+        // Definição das categorias e perguntas
+        const categories = [
+            {
+                name: "1. AUTOESTIMA",
+                questions: [
+                    "1.1. Autoimagem: O quanto você se sente segura com o seu corpo?",
+                    "1.2. Amor Próprio: O quanto você se ama independentemente do reconhecimento e amor externos?",
+                    "1.3. Talentos: O quanto você reconhece seus dons, talentos e habilidades?"
+                ]
+            },
+            {
+                name: "2. MEMÓRIAS",
+                questions: [
+                    "2.1. Ex namorados: O quanto você já superou as suas relações amorosas do passado?",
+                    "2.2. Pai e Mãe: O quanto você se vê agindo diferente (para melhor) do que seus pais se relacionaram amorosamente entre si?",
+                    "2.3. Eu do Passado: O quanto você se sente em paz com a sua versão do passado no que se refere à sua maneira de se relacionar amorosamente?"
+                ]
+            },
+            {
+                name: "3. ARMADURA",
+                questions: [
+                    "3.1. Coragem: O quanto você tem coragem de se abrir para o amor?",
+                    "3.2. Desejo: O quanto você deseja ser vista/acessada/amada?",
+                    "3.3. Merecimento: O quanto você se sente merecedora de ser amada?"
+                ]
+            },
+            {
+                name: "4. RESSIGNIFICAR",
+                questions: [
+                    "4.1. Parceiro: O quanto de clareza você tem sobre que tipo de parceiro quer atrair?",
+                    "4.2. Entrega: O quanto de clareza você tem sobre o que está disposta a doar?",
+                    "4.3. Clareza Emocional: O quanto você sabe a respeito de como quer se sentir nesta relação?"
+                ]
+            }
+        ];
+
+        // Achata o array de perguntas para gerenciar as respostas
+        const flatQuestions = categories.flatMap(cat => cat.questions);
+        let answers = Array(flatQuestions.length).fill(5); // Estado das respostas
+
+        let radarChartInstance = null; // Instância do gráfico Chart.js
+
+        // Plugin customizado para cores de fundo do radar
+        const radarBackgroundPlugin = {
+            id: 'radarBackgroundPlugin',
+            beforeDraw: (chart) => {
+                const { ctx, chartArea: { left, top, right, bottom }, scales: { r } } = chart;
+                const { width, height } = chart;
+
+                ctx.save();
+
+                const centerX = (left + right) / 2;
+                const centerY = (top + bottom) / 2;
+
+                const colorRanges = [
+                    { color: '#4BC0C0', max: 10 }, // Verde para 8-10 (exterior)
+                    { color: '#36A2EB', max: 7 }, // Azul para 5-7
+                    { color: '#FFCE56', max: 4 }, // Amarelo para 2-4
+                    { color: '#FF6384', max: 1 }, // Vermelho para 0-1 (centro)
+                ];
+
+                colorRanges.forEach((range) => {
+                    const radius = r.getPixelForValue(range.max);
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                    ctx.fillStyle = range.color;
+                    ctx.fill();
+                });
+
+                ctx.restore();
+            }
+        };
+
+        // Função para renderizar as perguntas e sliders
+        function renderQuestions() {
+            const questionsContainer = document.getElementById('questions-container');
+            let htmlContent = '<h2 class="text-3xl font-bold text-pink-600 mb-6">Suas Respostas</h2>';
+
+            let currentFlatIndex = 0;
+            categories.forEach((category, catIndex) => {
+                htmlContent += `<h3 class="text-2xl font-bold text-pink-500 mt-6 mb-4 col-span-full">${category.name}</h3>`;
+                htmlContent += `<div class="grid grid-cols-1 gap-6">`;
+                category.questions.forEach((q, qInCatIndex) => {
+                    htmlContent += `
+                        <div class="flex flex-col mb-4 slider-container">
+                            <label for="question-${currentFlatIndex}" class="text-base font-bold text-gray-700 mb-2">
+                                ${q}
+                            </label>
+                            <div class="flex items-center space-x-4">
+                                <input
+                                    type="range"
+                                    id="question-${currentFlatIndex}"
+                                    min="0"
+                                    max="10"
+                                    value="${answers[currentFlatIndex]}"
+                                    class="w-full h-2 bg-pink-300 rounded-lg appearance-none cursor-pointer range-lg accent-pink-500"
+                                >
+                                <span class="text-lg font-bold text-pink-700 w-10 text-right">${answers[currentFlatIndex]}</span>
+                            </div>
+                        </div>
+                    `;
+                    currentFlatIndex++;
+                });
+                htmlContent += `</div>`;
+            });
+            questionsContainer.innerHTML = htmlContent;
+
+            // Adiciona event listeners aos sliders após a renderização
+            document.querySelectorAll('#questions-container input[type="range"]').forEach(slider => {
+                slider.addEventListener('input', (event) => {
+                    const index = parseInt(event.target.id.replace('question-', ''), 10);
+                    const value = parseInt(event.target.value, 10);
+                    answers[index] = value;
+                    event.target.nextElementSibling.textContent = value; // Atualiza o valor exibido
+                    updateChart();
+                    renderSummary(); // Atualiza o resumo também
+                });
+            });
+        }
+
+        // Função para renderizar o quadro resumo
+        function renderSummary() {
+            const summarySection = document.getElementById('summary-section');
+            let htmlContent = '<h2 class="text-2xl font-bold text-pink-600 mb-4">Quadro Resumo das Respostas</h2>';
+
+            let currentFlatIndex = 0;
+            categories.forEach((category, catIndex) => {
+                htmlContent += `<div class="mb-4">`;
+                htmlContent += `<h3 class="text-xl font-bold text-pink-500 mb-2">${category.name}</h3>`;
+                htmlContent += `<ul class="list-disc list-inside text-gray-800 text-lg font-bold">`;
+                category.questions.forEach((q) => {
+                    htmlContent += `
+                        <li class="mb-1">
+                            ${q}: <span class="text-pink-700">${answers[currentFlatIndex]}</span>
+                        </li>
+                    `;
+                    currentFlatIndex++;
+                });
+                htmlContent += `</ul></div>`;
+            });
+            summarySection.innerHTML = htmlContent;
+        }
+
+        // Função para inicializar/atualizar o gráfico de radar
+        function updateChart() {
+            const ctx = document.getElementById('radarChart').getContext('2d');
+
+            const data = {
+                labels: flatQuestions.map(q => q.split(':')[0].trim()),
+                datasets: [
+                    {
+                        label: 'Seu Nível',
+                        data: answers,
+                        backgroundColor: 'rgba(0, 128, 128, 0.6)',
+                        borderColor: 'rgba(0, 128, 128, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(0, 128, 128, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(0, 128, 128, 1)',
+                    },
+                ],
+            };
+
+            const options = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        angleLines: {
+                            display: true,
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        },
+                        pointLabels: {
+                            font: {
+                                size: 14,
+                                family: 'Inter',
+                                weight: 'bold',
+                            },
+                            color: '#333333',
+                        },
+                        min: 0,
+                        max: 10,
+                        ticks: {
+                            stepSize: 1,
+                            display: true,
+                            color: '#333333',
+                            backdropColor: 'rgba(255, 255, 255, 0.5)',
+                            font: {
+                                family: 'Inter',
+                                size: 14,
+                                weight: 'bold',
+                            },
+                        },
+                    },
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: {
+                            color: '#333333',
+                            font: {
+                                family: 'Inter',
+                                size: 16,
+                                weight: 'bold',
+                            },
+                        },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const questionIndex = flatQuestions.findIndex(q => q.split(':')[0].trim() === context.label);
+                                return `${flatQuestions[questionIndex]}: ${context.raw}`;
+                            }
+                        },
+                        titleFont: { family: 'Inter', weight: 'bold', size: 16 },
+                        bodyFont: { family: 'Inter', weight: 'bold', size: 14 },
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                    },
+                    radarBackgroundPlugin: radarBackgroundPlugin // Garante que o plugin seja registrado para esta instância
+                },
+            };
+
+            if (radarChartInstance) {
+                radarChartInstance.data = data;
+                radarChartInstance.update();
+            } else {
+                radarChartInstance = new Chart(ctx, {
+                    type: 'radar',
+                    data: data,
+                    options: options,
+                    plugins: [radarBackgroundPlugin] // Registra o plugin aqui também
+                });
+            }
+        }
+
+        // Função para exportar o gráfico e o resumo como imagem
+        async function exportChartAndSummaryAsImage() {
+            const chartAndSummaryExportContainer = document.getElementById('chart-and-summary-export-container');
+            if (!chartAndSummaryExportContainer) {
+                console.error("Referência do contêiner de exportação não encontrada.");
+                return;
+            }
+
+            // Oculta temporariamente os sliders e o botão de exportar para uma captura de tela limpa
+            const sliders = document.querySelectorAll('.slider-container');
+            sliders.forEach(s => s.style.display = 'none');
+            const exportButton = document.getElementById('export-button');
+            if (exportButton) exportButton.style.display = 'none';
+            
+            // Temporariamente mostra o contêiner de exportação se ele estiver oculto por algum motivo
+            const originalDisplay = chartAndSummaryExportContainer.style.display;
+            chartAndSummaryExportContainer.style.display = 'flex'; // Garante que esteja visível para captura
+
+            if (window.html2canvas) {
+                window.html2canvas(chartAndSummaryExportContainer, {
+                    useCORS: true,
+                    backgroundColor: '#FCE7F3',
+                    scale: 2,
+                }).then(canvas => {
+                    const image = canvas.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.href = image;
+                    link.download = 'mandala_do_amar_resultado.png';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    // Restaura os elementos ocultos
+                    sliders.forEach(s => s.style.display = 'block');
+                    if (exportButton) exportButton.style.display = 'block';
+                    chartAndSummaryExportContainer.style.display = originalDisplay; // Restaura o display original
+                }).catch(err => {
+                    console.error("Erro ao exportar o gráfico e resumo:", err);
+                    // Restaura os elementos ocultos em caso de erro
+                    sliders.forEach(s => s.style.display = 'block');
+                    if (exportButton) exportButton.style.display = 'block';
+                    chartAndSummaryExportContainer.style.display = originalDisplay; // Restaura o display original
+                });
+            } else {
+                console.error("html2canvas não está disponível. Certifique-se de que foi carregado via CDN.");
+                // Restaura os elementos ocultos
+                sliders.forEach(s => s.style.display = 'block');
+                if (exportButton) exportButton.style.display = 'block';
+            }
+        }
+
+        // Inicializa o aplicativo quando o DOM estiver completamente carregado
+        document.addEventListener('DOMContentLoaded', () => {
+            renderQuestions();
+            renderSummary();
+            updateChart(); // Inicializa o gráfico
+            document.getElementById('export-button').addEventListener('click', exportChartAndSummaryAsImage);
+        });
+    </script>
+</body>
+</html>
