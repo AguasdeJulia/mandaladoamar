@@ -4,16 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mandala do Amar</title>
-    <!-- Tailwind CSS CDN -->
+    <!-- Tailwind CSS CDN - Garante que as classes de estilo sejam aplicadas -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts - Inter -->
+    <!-- Google Fonts - Inter - Garante que a fonte seja carregada -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Chart.js CDN -->
+    <!-- Chart.js CDN - Biblioteca para o gráfico -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- html2canvas CDN - ESSENCIAL para a funcionalidade de exportação de imagem -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        /* Estilos personalizados para o input range */
+        /* Estilos personalizados para o input range (polegar) */
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
@@ -130,26 +130,34 @@
             id: 'radarBackgroundPlugin',
             beforeDraw: (chart) => {
                 const { ctx, chartArea: { left, top, right, bottom }, scales: { r } } = chart;
-                const { width, height } = chart;
 
                 ctx.save();
 
                 const centerX = (left + right) / 2;
                 const centerY = (top + bottom) / 2;
 
-                const colorRanges = [
-                    { color: '#4BC0C0', max: 10 }, // Verde para 8-10 (exterior)
-                    { color: '#36A2EB', max: 7 }, // Azul para 5-7
-                    { color: '#FFCE56', max: 4 }, // Amarelo para 2-4
-                    { color: '#FF6384', max: 1 }, // Vermelho para 0-1 (centro)
+                // Define as bandas de cor com seus valores mínimo e máximo na escala
+                // Ordem: do centro para fora, desenhando anéis
+                const colorBands = [
+                    { color: '#FF6384', minVal: 0, maxVal: 1 }, // Vermelho para 0-1
+                    { color: '#FFCE56', minVal: 2, maxVal: 4 }, // Amarelo para 2-4
+                    { color: '#36A2EB', minVal: 5, maxVal: 7 }, // Azul para 5-7
+                    { color: '#4BC0C0', minVal: 8, maxVal: 10 }, // Verde para 8-10
                 ];
 
-                colorRanges.forEach((range) => {
-                    const radius = r.getPixelForValue(range.max);
+                // Desenha cada banda de cor como um anel
+                colorBands.forEach((band) => {
+                    const innerRadius = r.getPixelForValue(band.minVal);
+                    const outerRadius = r.getPixelForValue(band.maxVal);
+
                     ctx.beginPath();
-                    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-                    ctx.fillStyle = range.color;
-                    ctx.fill();
+                    // Desenha o arco externo
+                    ctx.arc(centerX, centerY, outerRadius, 0, 2 * Math.PI);
+                    // Desenha o arco interno no sentido inverso para criar o "buraco" do anel
+                    ctx.arc(centerX, centerY, innerRadius, 2 * Math.PI, 0, true);
+                    ctx.closePath(); // Fecha o caminho para formar o anel
+                    ctx.fillStyle = band.color;
+                    ctx.fill(); // Preenche o anel
                 });
 
                 ctx.restore();
@@ -307,19 +315,19 @@
                         titleColor: '#fff',
                         bodyColor: '#fff',
                     },
-                    radarBackgroundPlugin: radarBackgroundPlugin // Garante que o plugin seja registrado para esta instância
                 },
             };
 
             if (radarChartInstance) {
                 radarChartInstance.data = data;
+                radarChartInstance.options = options; // Atualiza as opções também
                 radarChartInstance.update();
             } else {
                 radarChartInstance = new Chart(ctx, {
                     type: 'radar',
                     data: data,
                     options: options,
-                    plugins: [radarBackgroundPlugin] // Registra o plugin aqui também
+                    plugins: [radarBackgroundPlugin] // Garante que o plugin seja registrado na inicialização
                 });
             }
         }
@@ -345,8 +353,8 @@
             if (window.html2canvas) {
                 window.html2canvas(chartAndSummaryExportContainer, {
                     useCORS: true,
-                    backgroundColor: '#FCE7F3',
-                    scale: 2,
+                    backgroundColor: '#FCE7F3', // Cor de fundo da imagem exportada (pink-100)
+                    scale: 2, // Aumenta a escala para melhor resolução
                 }).then(canvas => {
                     const image = canvas.toDataURL('image/png');
                     const link = document.createElement('a');
@@ -377,10 +385,12 @@
 
         // Inicializa o aplicativo quando o DOM estiver completamente carregado
         document.addEventListener('DOMContentLoaded', () => {
+            console.log("DOM completamente carregado. Inicializando a Mandala do Amar.");
             renderQuestions();
             renderSummary();
             updateChart(); // Inicializa o gráfico
             document.getElementById('export-button').addEventListener('click', exportChartAndSummaryAsImage);
+            console.log("Mandala do Amar inicializada.");
         });
     </script>
 </body>
